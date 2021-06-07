@@ -8,8 +8,7 @@ const passport = require('passport');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Models
-const {User} = require('../models');  //use destructuting here...by default it will look through our index.js inside of models
-// const {books} = require('../models');// if we had a books model
+const { User } = require('../models');
 
 // controllers
 const test = async (req, res) => {
@@ -17,50 +16,107 @@ const test = async (req, res) => {
 }
 
 const signup = async (req, res) => {
-    console.log('---Inside of Signup----');
+    console.log('--- INSIDE OF SIGNUP ---');
     console.log('req.body =>', req.body);
-    const {name, email, password} = req.body; //destructuring 
-    //controller to handle when a user signs up
-    
+    const { name, email, password } = req.body;
+
     try {
-    //see if a user exists in db by email
-    const user = await User.findOne({ email})
+        // see if a user exist in the database by email
+        const user = await User.findOne({ email });
 
-    //if user exists return 400 error and message
+        // if a user exist return 400 error and message
+        if (user) {
+            return res.status(400).json({ message: 'Email already exists' });
+        } else {
+            console.log('Create new user');
+            let saltRounds = 12;
+            let salt = await bcrypt.genSalt(saltRounds);
+            let hash = await bcrypt.hash(password, salt);
 
-    if (user){ 
-        return res.status(400).json({ message: 'Email already exists' })
-    } else {
-        console.log('Create new User');
-        let saltRounds = 12; 
-        let salt = await bcrypt.genSalt(saltRounds);
-        let hash = await bcrypt.hash(password, salt);
+            const newUser = new User({
+                name,
+                email,
+                password: hash
+            });
 
-        const newUser = new User ({
-            name, 
-            email,
-            password: hash
-        });
+            const savedNewUser = await newUser.save();
 
-        const savedNewUser = await newUser.save();
+            res.json(savedNewUser);
 
-        res.json(savedNewUser);
-    }
+        }
     } catch (error) {
-       console.log('Error inside of /api/users/signup')
-       console.log(error);
-       return res.status(400).json({message: 'Error occurred. Please try again...'})
+        console.log('Error inside of /api/users/signup');
+        console.log(error);
+        return res.status(400).json({ message: 'Error occurred. Please try again...'});
     }
-
 }
+
+const login = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // find a user via email
+        const user = await User.findOne({ email });
+        console.log(user);
+
+        // if there is no user by the email
+        if (!user) {
+            return res.status(400).json({ message: 'Either email or password is incorrect.' });
+        } else {
+            // a user is found in the database
+            let isMatch = await bcrypt.compare(password, user.password);
+            console.log('password correct', isMatch);
+
+            if (isMatch) {
+                // Add one to timesLoggedIn
+                let logs = user.timesLoggedIn + 1;
+                user.timesLoggedIn = logs;
+                const savedUser = await user.save();
+                // create a token payload (object)
+                const payload = {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    expiredToken: Date.now()
+                }
+                
+                try {
+                   // token is generated
+                   let token = await jwt.sign(payload, JWT_SECRET, { expiresIn: 3600 });
+                   console.log('token', token);
+                   let legit = await jwt.verify(token, JWT_SECRET, { expiresIn: 60 });
+
+                   res.json({
+                       success: true,
+                       token: `Bearer ${token}`,
+                       userData: legit
+                   })
+                } catch (error) {
+                    console.log('Error inside of isMatch conditional');
+                    console.log(error);
+                    return res.status(400).json({ message: 'Session has ended. Please log in again' });
+                }
+            } else {
+                return res.status(400).json({ message: 'Either email or password is incorrect' });
+            }
+        }
+
+    } catch (error) {
+        console.log('Error inside of /api/users/login');
+        console.log(error);
+        return res.status(400).json({ message: 'Either email or password is incorrect. Please try again' });
+    }
+}
+
 // routes
+// GET -> /api/users/test
 router.get('/test', test);
 
-// POST api/users/register (Public)
-// router.post('/signup', signup);
+// POST -> api/users/signup (Public)
+router.post('/signup', signup);
 
-// POST api/users/login (Public)
-// router.post('/login', login);
+// POST -> api/users/login (Public)
+router.post('/login', login);
 
 // GET api/users/current (Private)
 // router.get('/profile', passport.authenticate('jwt', { session: false }), profile);
