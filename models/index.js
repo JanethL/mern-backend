@@ -23,10 +23,13 @@ db.on('error', (error) => {
 //Import all of your models 
 
 const User = require('./User');
+const Book = require('./Book');
+
 
 
 //Export all the models from this file
 
 module.exports = {
-    User
+    User,
+    Book,
 }
