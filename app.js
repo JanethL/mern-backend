@@ -14,6 +14,8 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
+
+
 // Initialize Passport and use config file
 app.use(passport.initialize());
 
@@ -23,7 +25,7 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-// app.use('/api/users', users);
+app.use('/api/users', users);
 
 app.get('/*', (req, res) => {
     res.status(404).json({ message: 'Data not found' });
