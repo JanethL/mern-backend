@@ -8,6 +8,8 @@ const passport = require('passport');
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Models
+const {User} = require('../models');  //use destructuting here...by default it will look through our index.js inside of models
+// const {books} = require('../models');// if we had a books model
 
 // controllers
 const test = async (req, res) => {
